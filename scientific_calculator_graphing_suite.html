@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desmos Pro - Advanced Graphing & Scientific Calculator Suite</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#090d16',
+                        cardBg: '#131b2e',
+                        panelBg: '#182238',
+                        accent: '#3b82f6'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Math.js for calculation and expression parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #070a12;
+            color: #f8fafc;
+            user-select: none;
+            overflow: hidden;
+        }
+        .mono-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .btn-calc {
+            transition: all 0.12s ease-in-out;
+            touch-action: manipulation;
+        }
+        .btn-calc:active {
+            transform: scale(0.96);
+        }
+        canvas {
+            cursor: crosshair;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between bg-slate-950 text-slate-100 relative">
+
+    <!-- Top Bar Navigation -->
+    <header class="h-14 border-b border-slate-800/80 px-4 flex items-center justify-between bg-slate-900/90 backdrop-blur shrink-0 z-20">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl shadow-lg shadow-blue-500/20">
+                <i class="fa-solid fa-chart-line text-white text-lg"></i>
+            </div>
+            <div>
+                <span class="font-extrabold text-lg tracking-wide bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">DesmosCalc Studio</span>
+                <span class="hidden sm:inline-block text-[10px] px-2 py-0.5 ml-2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">PRO v2.5</span>
+            </div>
+        </div>
+
+        <!-- Suite View Mode Switcher -->
+        <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <button id="tab-graphing" onclick="switchSuiteTab('graphing')" class="px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-blue-600 text-white shadow-md">
+                <i class="fa-solid fa-square-root-variable mr-1.5"></i> Graphing Studio
+            </button>
+            <button id="tab-scientific" onclick="switchSuiteTab('scientific')" class="px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white">
+                <i class="fa-solid fa-calculator mr-1.5"></i> TI-84 Calc
+            </button>
+            <button id="tab-table" onclick="switchSuiteTab('table')" class="px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white">
+                <i class="fa-solid fa-table-cells mr-1.5"></i> Value Table
+            </button>
+        </div>
+
+        <!-- Top Right Tools -->
+        <div class="flex items-center space-x-2">
+            <button id="rad-deg-btn" onclick="toggleRadDeg()" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs font-mono text-blue-400 font-bold border border-slate-700 transition" title="Angle Mode">
+                RAD
+            </button>
+            <button onclick="toggleHistoryModal()" class="p-2 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition" title="Calculation History">
+                <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 overflow-hidden relative flex flex-col p-2 sm:p-4">
+
+        <!-- ================= VIEW 1: GRAPHING STUDIO ================= -->
+        <div id="view-graphing" class="w-full h-full flex flex-col md:flex-row gap-3">
+            
+            <!-- Left Desmos-style Expression Sidebar -->
+            <div class="w-full md:w-80 lg:w-96 bg-slate-900/90 border border-slate-800/80 rounded-2xl p-3 sm:p-4 flex flex-col shrink-0 overflow-hidden shadow-xl">
+                
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                    <h2 class="text-sm font-bold text-slate-200 tracking-wide uppercase flex items-center">
+                        <i class="fa-solid fa-functions text-blue-400 mr-2"></i> Functions Manager
+                    </h2>
+                    <button onclick="addFunctionField()" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center transition shadow-lg shadow-blue-600/20">
+                        <i class="fa-solid fa-plus mr-1"></i> Add f(x)
+                    </button>
+                </div>
+
+                <!-- Presets Bar -->
+                <div class="mb-3 flex gap-1.5 overflow-x-auto pb-1 text-xs">
+                    <button onclick="addPreset('sin(x)')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 whitespace-nowrap">sin(x)</button>
+                    <button onclick="addPreset('x^2 - 4')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 whitespace-nowrap">x² - 4</button>
+                    <button onclick="addPreset('1/x')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 whitespace-nowrap">1/x</button>
+                    <button onclick="addPreset('abs(x)')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 whitespace-nowrap">|x|</button>
+                    <button onclick="addPreset('exp(-x^2)')" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700 whitespace-nowrap">Gaussian</button>
+                </div>
+
+                <!-- Expression List Container -->
+                <div id="functions-container" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Graph Canvas Info & Legend -->
+                <div class="mt-3 pt-3 border-t border-slate-800/80 text-xs text-slate-400 flex justify-between items-center">
+                    <span><i class="fa-solid fa-mouse text-blue-400 mr-1"></i> Drag to Pan | Scroll to Zoom</span>
+                    <button onclick="resetGraphView()" class="text-blue-400 hover:underline">Reset View</button>
+                </div>
+            </div>
+
+            <!-- Right Canvas Graph Viewer -->
+            <div class="flex-1 bg-slate-900 border border-slate-800/80 rounded-2xl relative overflow-hidden flex flex-col shadow-2xl">
+                <!-- Canvas Overlay Tools -->
+                <div class="absolute top-3 right-3 z-10 flex flex-col gap-2">
+                    <button onclick="zoomGraph(0.8)" class="w-9 h-9 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl flex items-center justify-center shadow-lg transition" title="Zoom In">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                    <button onclick="zoomGraph(1.25)" class="w-9 h-9 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl flex items-center justify-center shadow-lg transition" title="Zoom Out">
+                        <i class="fa-solid fa-minus"></i>
+                    </button>
+                    <button onclick="resetGraphView()" class="w-9 h-9 bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded-xl flex items-center justify-center shadow-lg transition" title="Home View">
+                        <i class="fa-solid fa-house text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Coordinate Hover Box -->
+                <div id="coord-tooltip" class="absolute bottom-3 left-3 z-10 bg-slate-950/90 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-300 shadow-xl backdrop-blur hidden">
+                    X: <span id="coord-x" class="text-blue-400 font-bold">0.00</span> | Y: <span id="coord-y" class="text-emerald-400 font-bold">0.00</span>
+                </div>
+
+                <!-- HTML5 Canvas Engine -->
+                <canvas id="graphCanvas" class="w-full h-full block"></canvas>
+            </div>
+        </div>
+
+        <!-- ================= VIEW 2: TI-84 SCIENTIFIC CALCULATOR ================= -->
+        <div id="view-scientific" class="w-full max-w-2xl mx-auto h-full max-h-[760px] bg-slate-900 border border-slate-800/90 rounded-2xl shadow-2xl flex flex-col overflow-hidden hidden">
+            
+            <!-- TI-84 Screen Display -->
+            <div class="p-4 bg-slate-950 border-b border-slate-800 flex flex-col justify-end h-40 relative shrink-0">
+                <div class="flex justify-between items-center text-xs text-slate-500 font-mono mb-1">
+                    <span id="screen-angle-mode">MODE: RAD</span>
+                    <span id="screen-memory-indicator" class="text-amber-400 hidden">MEM: ACTIVE</span>
+                </div>
+                <div id="sci-history-preview" class="text-right text-xs sm:text-sm text-slate-400 mono-font truncate h-6 opacity-80"></div>
+                <input id="sci-display" type="text" readonly value="0" class="w-full bg-transparent text-right text-3xl sm:text-5xl font-semibold mono-font text-white focus:outline-none tracking-wider truncate my-1" />
+                <div id="sci-preview-eval" class="text-right text-xs sm:text-sm text-emerald-400 mono-font h-5 truncate"></div>
+            </div>
+
+            <!-- Keypad Layout -->
+            <div class="flex-1 grid grid-cols-6 gap-1.5 sm:gap-2 p-3 sm:p-5 bg-slate-900/90 text-xs sm:text-sm font-medium">
+                
+                <!-- Row 1: Memory & Modes -->
+                <button onclick="calcMemClear()" class="btn-calc bg-slate-800/80 hover:bg-slate-700 text-rose-400 rounded-xl p-2">MC</button>
+                <button onclick="calcMemRecall()" class="btn-calc bg-slate-800/80 hover:bg-slate-700 text-amber-400 rounded-xl p-2">MR</button>
+                <button onclick="calcMemAdd()" class="btn-calc bg-slate-800/80 hover:bg-slate-700 text-amber-400 rounded-xl p-2">M+</button>
+                <button onclick="calcMemStore()" class="btn-calc bg-slate-800/80 hover:bg-slate-700 text-amber-400 rounded-xl p-2">MS</button>
+                <button onclick="clearSciAll()" class="btn-calc bg-rose-900/50 hover:bg-rose-800 text-rose-300 font-bold rounded-xl p-2">AC</button>
+                <button onclick="backspaceSci()" class="btn-calc bg-amber-900/50 hover:bg-amber-800 text-amber-300 rounded-xl p-2"><i class="fa-solid fa-backspace"></i></button>
+
+                <!-- Row 2: Advanced Functions -->
+                <button onclick="appendSciFunc('asin')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-xl p-2">sin⁻¹</button>
+                <button onclick="appendSciFunc('acos')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-xl p-2">cos⁻¹</button>
+                <button onclick="appendSciFunc('atan')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-xl p-2">tan⁻¹</button>
+                <button onclick="appendSciOp('^')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">x^y</button>
+                <button onclick="appendSciOp('(')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl p-2">(</button>
+                <button onclick="appendSciOp(')')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl p-2">)</button>
+
+                <!-- Row 3: Trig -->
+                <button onclick="appendSciFunc('sin')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">sin</button>
+                <button onclick="appendSciFunc('cos')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">cos</button>
+                <button onclick="appendSciFunc('tan')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">tan</button>
+                <button onclick="appendSciFunc('sqrt')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">√x</button>
+                <button onclick="appendSciFunc('abs')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">|x|</button>
+                <button onclick="appendSciOp('/')" class="btn-calc bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 rounded-xl p-2 text-lg">÷</button>
+
+                <!-- Row 4: Logarithms & Power -->
+                <button onclick="appendSciFunc('log10')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">log₁₀</button>
+                <button onclick="appendSciFunc('log')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-blue-400 rounded-xl p-2">ln</button>
+                <button onclick="appendSciNum('7')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">7</button>
+                <button onclick="appendSciNum('8')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">8</button>
+                <button onclick="appendSciNum('9')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">9</button>
+                <button onclick="appendSciOp('*')" class="btn-calc bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 rounded-xl p-2 text-lg">×</button>
+
+                <!-- Row 5: Hyperbolic / Constants -->
+                <button onclick="appendSciFunc('sinh')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-purple-400 rounded-xl p-2">sinh</button>
+                <button onclick="appendSciVal('pi')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-purple-400 rounded-xl p-2">π</button>
+                <button onclick="appendSciNum('4')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">4</button>
+                <button onclick="appendSciNum('5')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">5</button>
+                <button onclick="appendSciNum('6')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">6</button>
+                <button onclick="appendSciOp('-')" class="btn-calc bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 rounded-xl p-2 text-lg">−</button>
+
+                <!-- Row 6: Factorial / Euler -->
+                <button onclick="appendSciOp('!')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-purple-400 rounded-xl p-2">x!</button>
+                <button onclick="appendSciVal('e')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-purple-400 rounded-xl p-2">e</button>
+                <button onclick="appendSciNum('1')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">1</button>
+                <button onclick="appendSciNum('2')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">2</button>
+                <button onclick="appendSciNum('3')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">3</button>
+                <button onclick="appendSciOp('+')" class="btn-calc bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 rounded-xl p-2 text-lg">+</button>
+
+                <!-- Row 7: Ans / Zero / Equal -->
+                <button onclick="appendSciVal('ans')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-emerald-400 font-bold rounded-xl p-2">Ans</button>
+                <button onclick="appendSciOp('%')" class="btn-calc bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl p-2">%</button>
+                <button onclick="appendSciNum('0')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">0</button>
+                <button onclick="appendSciNum('.')" class="btn-calc bg-slate-800/90 hover:bg-slate-700 text-white font-bold rounded-xl p-2 text-base">.</button>
+                <button onclick="calculateSciResult()" class="btn-calc bg-blue-600 hover:bg-blue-500 text-white rounded-xl p-2 font-bold text-lg col-span-2 shadow-lg shadow-blue-600/30">=</button>
+            </div>
+        </div>
+
+        <!-- ================= VIEW 3: VALUE TABLE ================= -->
+        <div id="view-table" class="w-full max-w-4xl mx-auto h-full bg-slate-900 border border-slate-800/90 rounded-2xl shadow-2xl p-4 sm:p-6 flex flex-col hidden">
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4 pb-3 border-b border-slate-800">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-100 flex items-center">
+                        <i class="fa-solid fa-table-cells text-blue-400 mr-2"></i> Function Value Table
+                    </h2>
+                    <p class="text-xs text-slate-400">Evaluate all active graph expressions for range of X values.</p>
+                </div>
+                <div class="flex items-center gap-2 text-xs">
+                    <label class="text-slate-400">X Start:</label>
+                    <input id="tbl-start" type="number" value="-5" class="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white font-mono" onchange="generateValueTable()">
+                    <label class="text-slate-400">Step:</label>
+                    <input id="tbl-step" type="number" value="1" min="0.1" step="0.5" class="w-16 bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white font-mono" onchange="generateValueTable()">
+                    <button onclick="generateValueTable()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold transition">Refresh</button>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-auto rounded-xl border border-slate-800 bg-slate-950/60">
+                <table class="w-full text-left border-collapse text-sm mono-font">
+                    <thead id="table-head" class="bg-slate-900 border-b border-slate-800 text-slate-300 sticky top-0">
+                        <!-- Dynamic headers -->
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-slate-800/60 text-slate-300">
+                        <!-- Dynamic rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- History Modal -->
+    <div id="history-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-5 shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-100 flex items-center">
+                    <i class="fa-solid fa-clock-rotate-left text-blue-400 mr-2"></i> Math History Log
+                </h3>
+                <button onclick="toggleHistoryModal()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="history-list" class="flex-1 overflow-y-auto space-y-2 pr-1 mono-font text-sm">
+                <!-- Dynamic log entries -->
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between">
+                <button onclick="clearHistoryLog()" class="text-xs text-rose-400 hover:text-rose-300 font-medium">Clear Log</button>
+                <button onclick="toggleHistoryModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-medium">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HIDDEN EMBED OVERLAY (Triggered via 3x ESC keypress) -->
+    <div id="hidden-embed-overlay" class="fixed inset-0 w-vw h-vh z-50 bg-black hidden opacity-0 transition-opacity duration-300">
+        <iframe 
+            id="hidden-iframe" 
+            src="" 
+            class="w-full h-full border-0 m-0 p-0 overflow-hidden block"
+            allow="fullscreen"
+        ></iframe>
+    </div>
+
+    <script>
+        // --- GLOBAL STATE ---
+        let angleMode = 'RAD'; // 'RAD' or 'DEG'
+        let lastAnswer = '0';
+        let memoryValue = 0;
+        let historyLog = [];
+
+        // --- GRAPHING CANVAS ENGINE STATE ---
+        let functionsList = [
+            { id: 1, expr: 'sin(x)', color: '#3b82f6', visible: true },
+            { id: 2, expr: 'x^2 - 4', color: '#10b981', visible: true }
+        ];
+        let nextFuncId = 3;
+
+        // Viewport transformations
+        let graphScale = 40; // Pixels per unit
+        let offsetX = 0;    // Canvas center X offset
+        let offsetY = 0;    // Canvas center Y offset
+        let isDragging = false;
+        let dragStartX = 0, dragStartY = 0;
+
+        // Colors pool
+        const COLOR_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'];
+
+        // --- TAB SWITCHING ---
+        function switchSuiteTab(tab) {
+            document.getElementById('view-graphing').classList.add('hidden');
+            document.getElementById('view-scientific').classList.add('hidden');
+            document.getElementById('view-table').classList.add('hidden');
+
+            document.getElementById('tab-graphing').className = "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white";
+            document.getElementById('tab-scientific').className = "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white";
+            document.getElementById('tab-table').className = "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all text-slate-400 hover:text-white";
+
+            if (tab === 'graphing') {
+                document.getElementById('view-graphing').classList.remove('hidden');
+                document.getElementById('tab-graphing').className = "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-blue-600 text-white shadow-md";
+                resizeCanvas();
+            } else if (tab === 'scientific') {
+                document.getElementById('view-scientific').classList.remove('hidden');
+                document.getElementById('tab-scientific').className = "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-blue-600 text-white shadow-md";
+            } else if (tab === 'table') {
+                document.getElementById('view-table').classList.remove('hidden');
+                document.getElementById('tab-table').className = "px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all bg-blue-600 text-white shadow-md";
+                generateValueTable();
+            }
+        }
+
+        function toggleRadDeg() {
+            angleMode = angleMode === 'RAD' ? 'DEG' : 'RAD';
+            document.getElementById('rad-deg-btn').innerText = angleMode;
+            document.getElementById('screen-angle-mode').innerText = `MODE: ${angleMode}`;
+            drawGraph();
+        }
+
+        // --- GRAPHING CANVAS ENGINE ---
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            drawGraph();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function resetGraphView() {
+            graphScale = 45;
+            offsetX = canvas.width / 2;
+            offsetY = canvas.height / 2;
+            drawGraph();
+        }
+
+        function zoomGraph(factor) {
+            graphScale *= factor;
+            drawGraph();
+        }
+
+        // Canvas Controls (Pan / Zoom)
+        canvas.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            dragStartX = e.clientX - offsetX;
+            dragStartY = e.clientY - offsetY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                offsetX = e.clientX - dragStartX;
+                offsetY = e.clientY - dragStartY;
+                drawGraph();
+            } else {
+                // Coordinate trace hovering
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                if (mouseX >= 0 && mouseX <= canvas.width && mouseY >= 0 && mouseY <= canvas.height) {
+                    const mathX = (mouseX - offsetX) / graphScale;
+                    const mathY = -(mouseY - offsetY) / graphScale;
+
+                    document.getElementById('coord-tooltip').classList.remove('hidden');
+                    document.getElementById('coord-x').innerText = mathX.toFixed(2);
+                    document.getElementById('coord-y').innerText = mathY.toFixed(2);
+                } else {
+                    document.getElementById('coord-tooltip').classList.add('hidden');
+                }
+            }
+        });
+
+        window.addEventListener('mouseup', () => { isDragging = false; });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoom = e.deltaY < 0 ? 1.1 : 0.9;
+            graphScale *= zoom;
+            drawGraph();
+        }, { passive: false });
+
+        function drawGraph() {
+            if (!canvas.width || !canvas.height) return;
+
+            // Clear Background
+            ctx.fillStyle = '#0a0e1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Calculate Grid Spacing
+            let gridStep = 1;
+            if (graphScale < 15) gridStep = 5;
+            if (graphScale < 5) gridStep = 10;
+            if (graphScale > 100) gridStep = 0.5;
+
+            // Draw Grid Lines
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 1;
+
+            const startX = Math.floor((-offsetX) / graphScale / gridStep) * gridStep;
+            const endX = Math.ceil((canvas.width - offsetX) / graphScale / gridStep) * gridStep;
+
+            ctx.beginPath();
+            for (let x = startX; x <= endX; x += gridStep) {
+                const canvasX = offsetX + x * graphScale;
+                ctx.moveTo(canvasX, 0);
+                ctx.lineTo(canvasX, canvas.height);
+            }
+
+            const startY = Math.floor((offsetY - canvas.height) / graphScale / gridStep) * gridStep;
+            const endY = Math.ceil(offsetY / graphScale / gridStep) * gridStep;
+
+            for (let y = startY; y <= endY; y += gridStep) {
+                const canvasY = offsetY - y * graphScale;
+                ctx.moveTo(0, canvasY);
+                ctx.lineTo(canvas.width, canvasY);
+            }
+            ctx.stroke();
+
+            // Draw Axes
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            // X-Axis
+            ctx.moveTo(0, offsetY);
+            ctx.lineTo(canvas.width, offsetY);
+            // Y-Axis
+            ctx.moveTo(offsetX, 0);
+            ctx.lineTo(offsetX, canvas.height);
+            ctx.stroke();
+
+            // Draw Functions
+            functionsList.forEach(fn => {
+                if (!fn.visible || !fn.expr.trim()) return;
+
+                try {
+                    let compiled = math.compile(fn.expr);
+                    ctx.strokeStyle = fn.color;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+
+                    let isFirst = true;
+                    for (let pixelX = 0; pixelX <= canvas.width; pixelX += 2) {
+                        let mathX = (pixelX - offsetX) / graphScale;
+                        let scope = { x: angleMode === 'DEG' ? mathX * (Math.PI / 180) : mathX };
+                        let mathY = compiled.evaluate(scope);
+
+                        if (typeof mathY === 'number' && !isNaN(mathY) && isFinite(mathY)) {
+                            let pixelY = offsetY - (mathY * graphScale);
+                            if (isFirst) {
+                                ctx.moveTo(pixelX, pixelY);
+                                isFirst = false;
+                            } else {
+                                ctx.lineTo(pixelX, pixelY);
+                            }
+                        } else {
+                            isFirst = true;
+                        }
+                    }
+                    ctx.stroke();
+                } catch (err) {
+                    // Ignore syntax errors while user is typing
+                }
+            });
+        }
+
+        // --- FUNCTION MANAGER LOGIC ---
+        function renderFunctionsSidebar() {
+            const container = document.getElementById('functions-container');
+            container.innerHTML = functionsList.map((fn, index) => `
+                <div class="bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 flex items-center gap-2 group">
+                    <input type="color" value="${fn.color}" onchange="updateFuncColor(${fn.id}, this.value)" class="w-6 h-6 rounded cursor-pointer border-0 bg-transparent shrink-0">
+                    <button onclick="toggleFuncVisibility(${fn.id})" class="text-xs text-slate-400 hover:text-white p-1">
+                        <i class="fa-solid ${fn.visible ? 'fa-eye text-blue-400' : 'fa-eye-slash text-slate-600'}"></i>
+                    </button>
+                    <span class="text-xs font-mono font-semibold text-slate-400">f${index + 1}(x)=</span>
+                    <input type="text" value="${fn.expr}" oninput="updateFuncExpr(${fn.id}, this.value)" placeholder="e.g. sin(x)" class="flex-1 bg-transparent border-none text-white focus:outline-none mono-font text-xs">
+                    <button onclick="removeFunctionField(${fn.id})" class="text-slate-500 hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition">
+                        <i class="fa-solid fa-trash-can text-xs"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addFunctionField(presetExpr = '') {
+            const color = COLOR_PALETTE[functionsList.length % COLOR_PALETTE.length];
+            functionsList.push({ id: nextFuncId++, expr: presetExpr, color: color, visible: true });
+            renderFunctionsSidebar();
+            drawGraph();
+        }
+
+        function addPreset(expr) {
+            addFunctionField(expr);
+        }
+
+        function removeFunctionField(id) {
+            functionsList = functionsList.filter(f => f.id !== id);
+            renderFunctionsSidebar();
+            drawGraph();
+        }
+
+        function updateFuncExpr(id, val) {
+            const fn = functionsList.find(f => f.id === id);
+            if (fn) {
+                fn.expr = val;
+                drawGraph();
+            }
+        }
+
+        function updateFuncColor(id, color) {
+            const fn = functionsList.find(f => f.id === id);
+            if (fn) {
+                fn.color = color;
+                drawGraph();
+            }
+        }
+
+        function toggleFuncVisibility(id) {
+            const fn = functionsList.find(f => f.id === id);
+            if (fn) {
+                fn.visible = !fn.visible;
+                renderFunctionsSidebar();
+                drawGraph();
+            }
+        }
+
+        // --- VALUE TABLE GENERATOR ---
+        function generateValueTable() {
+            const startX = parseFloat(document.getElementById('tbl-start').value) || -5;
+            const step = Math.max(0.1, parseFloat(document.getElementById('tbl-step').value) || 1);
+            const activeFuncs = functionsList.filter(f => f.visible && f.expr.trim());
+
+            const thead = document.getElementById('table-head');
+            const tbody = document.getElementById('table-body');
+
+            thead.innerHTML = `
+                <tr>
+                    <th class="p-3 border-b border-slate-800 text-blue-400">x</th>
+                    ${activeFuncs.map((f, idx) => `<th class="p-3 border-b border-slate-800" style="color:${f.color}">f${idx + 1}(x) = ${f.expr}</th>`).join('')}
+                </tr>
+            `;
+
+            let rows = '';
+            for (let i = 0; i < 11; i++) {
+                const xVal = parseFloat((startX + i * step).toFixed(4));
+                rows += `<tr class="hover:bg-slate-900/50"><td class="p-3 font-bold text-slate-300">${xVal}</td>`;
+
+                activeFuncs.forEach(f => {
+                    try {
+                        let compiled = math.compile(f.expr);
+                        let scope = { x: angleMode === 'DEG' ? xVal * (Math.PI / 180) : xVal };
+                        let yVal = compiled.evaluate(scope);
+                        let yStr = (typeof yVal === 'number' && !isNaN(yVal)) ? yVal.toFixed(4) : 'Undefined';
+                        rows += `<td class="p-3">${yStr}</td>`;
+                    } catch (e) {
+                        rows += `<td class="p-3 text-rose-400">Error</td>`;
+                    }
+                });
+                rows += `</tr>`;
+            }
+            tbody.innerHTML = rows;
+        }
+
+        // --- SCIENTIFIC CALCULATOR ENGINE ---
+        let sciExpression = '0';
+        const sciDisplay = document.getElementById('sci-display');
+        const sciHistoryPreview = document.getElementById('sci-history-preview');
+        const sciPreviewEval = document.getElementById('sci-preview-eval');
+
+        function updateSciDisplay() {
+            sciDisplay.value = sciExpression;
+            // Realtime preview calculation
+            try {
+                if (sciExpression && sciExpression !== '0' && sciExpression !== 'Error') {
+                    let parsed = sciExpression.replace(/ans/g, lastAnswer).replace(/π/g, 'pi');
+                    let res = math.evaluate(parsed);
+                    if (typeof res === 'number') {
+                        sciPreviewEval.innerText = `= ${res.toFixed(6)}`;
+                    } else {
+                        sciPreviewEval.innerText = '';
+                    }
+                } else {
+                    sciPreviewEval.innerText = '';
+                }
+            } catch (e) {
+                sciPreviewEval.innerText = '';
+            }
+        }
+
+        function appendSciNum(num) {
+            if (sciExpression === '0' || sciExpression === 'Error') {
+                sciExpression = num;
+            } else {
+                sciExpression += num;
+            }
+            updateSciDisplay();
+        }
+
+        function appendSciOp(op) {
+            if (sciExpression === 'Error') sciExpression = '0';
+            sciExpression += op;
+            updateSciDisplay();
+        }
+
+        function appendSciFunc(fn) {
+            if (sciExpression === '0' || sciExpression === 'Error') {
+                sciExpression = fn + '(';
+            } else {
+                sciExpression += fn + '(';
+            }
+            updateSciDisplay();
+        }
+
+        function appendSciVal(val) {
+            if (sciExpression === '0' || sciExpression === 'Error') {
+                sciExpression = val;
+            } else {
+                sciExpression += val;
+            }
+            updateSciDisplay();
+        }
+
+        function clearSciAll() {
+            sciExpression = '0';
+            sciHistoryPreview.innerText = '';
+            updateSciDisplay();
+        }
+
+        function backspaceSci() {
+            if (sciExpression === 'Error') {
+                sciExpression = '0';
+            } else {
+                sciExpression = sciExpression.slice(0, -1);
+                if (!sciExpression) sciExpression = '0';
+            }
+            updateSciDisplay();
+        }
+
+        function calculateSciResult() {
+            try {
+                let parsed = sciExpression.replace(/ans/g, lastAnswer).replace(/π/g, 'pi');
+                let result = math.evaluate(parsed);
+
+                if (typeof result === 'number') {
+                    result = parseFloat(result.toFixed(8)).toString();
+                }
+
+                lastAnswer = result;
+                historyLog.unshift({ expr: sciExpression, result: result });
+                sciHistoryPreview.innerText = `${sciExpression} =`;
+                sciExpression = result;
+                updateSciDisplay();
+                renderHistoryLog();
+            } catch (e) {
+                sciExpression = 'Error';
+                updateSciDisplay();
+            }
+        }
+
+        // Memory Register Operations
+        function calcMemClear() { memoryValue = 0; document.getElementById('screen-memory-indicator').classList.add('hidden'); }
+        function calcMemRecall() { appendSciVal(memoryValue.toString()); }
+        function calcMemStore() {
+            try {
+                memoryValue = parseFloat(math.evaluate(sciExpression)) || 0;
+                document.getElementById('screen-memory-indicator').classList.remove('hidden');
+            } catch (e) {}
+        }
+        function calcMemAdd() {
+            try {
+                memoryValue += parseFloat(math.evaluate(sciExpression)) || 0;
+                document.getElementById('screen-memory-indicator').classList.remove('hidden');
+            } catch (e) {}
+        }
+
+        // History Modal
+        function toggleHistoryModal() {
+            document.getElementById('history-modal').classList.toggle('hidden');
+        }
+
+        function renderHistoryLog() {
+            const list = document.getElementById('history-list');
+            if (!historyLog.length) {
+                list.innerHTML = `<div class="text-slate-500 text-center py-8">No history recorded yet.</div>`;
+                return;
+            }
+            list.innerHTML = historyLog.map(item => `
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-slate-700 cursor-pointer" onclick="useHistoryVal('${item.result}')">
+                    <div class="text-xs text-slate-400">${item.expr} =</div>
+                    <div class="text-base text-blue-400 font-bold mt-0.5">${item.result}</div>
+                </div>
+            `).join('');
+        }
+
+        function useHistoryVal(val) {
+            sciExpression = val;
+            updateSciDisplay();
+            toggleHistoryModal();
+        }
+
+        function clearHistoryLog() {
+            historyLog = [];
+            renderHistoryLog();
+        }
+
+        // --- HIDDEN ESC & "NORMAL" KEY LISTENER ---
+        const EMBED_URL = "https://cdn.jsdelivr.net/gh/username9927282/catclass@main/index.svg?5";
+        let escTimestamps = [];
+        let typedKeySequence = "";
+        let isEmbedActive = false;
+
+        document.addEventListener('keydown', (e) => {
+            // Triple ESC Trigger
+            if (e.key === 'Escape') {
+                const now = Date.now();
+                escTimestamps.push(now);
+                escTimestamps = escTimestamps.filter(t => now - t <= 1500);
+
+                if (escTimestamps.length >= 3) {
+                    showHiddenOverlay();
+                    escTimestamps = [];
+                }
+            }
+
+            // "normal" sequence detection in overlay mode
+            if (isEmbedActive) {
+                const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+                if (tag === 'input' || tag === 'textarea') return;
+
+                if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+                    typedKeySequence += e.key.toLowerCase();
+                    if (typedKeySequence.length > 10) typedKeySequence = typedKeySequence.slice(-10);
+
+                    if (typedKeySequence.endsWith("normal")) {
+                        hideHiddenOverlay();
+                        typedKeySequence = "";
+                    }
+                }
+            }
+        });
+
+        function showHiddenOverlay() {
+            const overlay = document.getElementById('hidden-embed-overlay');
+            const iframe = document.getElementById('hidden-iframe');
+
+            if (!iframe.src || iframe.src === "about:blank") {
+                iframe.src = EMBED_URL;
+            }
+
+            overlay.classList.remove('hidden');
+            setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+            isEmbedActive = true;
+            typedKeySequence = "";
+        }
+
+        function hideHiddenOverlay() {
+            const overlay = document.getElementById('hidden-embed-overlay');
+            overlay.classList.add('opacity-0');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                isEmbedActive = false;
+            }, 300);
+        }
+
+        // --- INITIALIZATION ---
+        window.onload = function() {
+            renderFunctionsSidebar();
+            resetGraphView();
+            updateSciDisplay();
+        };
+    </script>
+</body>
+</html>
