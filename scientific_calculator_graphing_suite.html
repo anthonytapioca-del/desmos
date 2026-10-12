@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Desmos Pro - Advanced Graphing & Scientific Calculator Suite</title>
+    <title>Desmos Studio Pro - Scientific Calculator & Graphing Suite</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -12,9 +12,9 @@
             theme: {
                 extend: {
                     colors: {
-                        darkBg: '#090d16',
-                        cardBg: '#131b2e',
-                        panelBg: '#182238',
+                        darkBg: '#070a12',
+                        cardBg: '#111827',
+                        panelBg: '#1f2937',
                         accent: '#3b82f6'
                     }
                 }
@@ -73,8 +73,8 @@
                 <i class="fa-solid fa-chart-line text-white text-lg"></i>
             </div>
             <div>
-                <span class="font-extrabold text-lg tracking-wide bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">DesmosCalc Studio</span>
-                <span class="hidden sm:inline-block text-[10px] px-2 py-0.5 ml-2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">PRO v2.5</span>
+                <span class="font-extrabold text-lg tracking-wide bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">Desmos Studio</span>
+                <span class="hidden sm:inline-block text-[10px] px-2 py-0.5 ml-2 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">PRO v3.0</span>
             </div>
         </div>
 
@@ -293,11 +293,23 @@
     </div>
 
     <!-- HIDDEN EMBED OVERLAY (Triggered via 3x ESC keypress) -->
-    <div id="hidden-embed-overlay" class="fixed inset-0 w-vw h-vh z-50 bg-black hidden opacity-0 transition-opacity duration-300">
+    <div id="hidden-embed-overlay" class="fixed inset-0 w-screen h-screen z-50 bg-slate-950 hidden opacity-0 transition-opacity duration-300 flex flex-col items-center justify-center">
+        <!-- Status / Loading Indicator -->
+        <div id="embed-status" class="absolute top-4 left-4 z-10 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg text-xs text-slate-300 font-mono shadow-lg flex items-center gap-2">
+            <span id="embed-spinner" class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
+            <span id="embed-status-text">Loading embed... Type <strong class="text-blue-400">normal</strong> to exit.</span>
+        </div>
+
+        <!-- Escape Return Bar Button -->
+        <button onclick="hideHiddenOverlay()" class="absolute top-4 right-4 z-10 px-3 py-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-lg text-xs font-mono transition shadow-lg">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Return to Calculator
+        </button>
+
+        <!-- Embedded iFrame Container -->
         <iframe 
             id="hidden-iframe" 
             src="" 
-            class="w-full h-full border-0 m-0 p-0 overflow-hidden block"
+            class="w-full h-full border-0 m-0 p-0 overflow-hidden block bg-black"
             allow="fullscreen"
         ></iframe>
     </div>
@@ -501,7 +513,7 @@
                     }
                     ctx.stroke();
                 } catch (err) {
-                    // Ignore syntax errors while user is typing
+                    // Ignore expression syntax errors while typing
                 }
             });
         }
@@ -611,7 +623,7 @@
 
         function updateSciDisplay() {
             sciDisplay.value = sciExpression;
-            // Realtime preview calculation
+            // Realtime preview evaluation
             try {
                 if (sciExpression && sciExpression !== '0' && sciExpression !== 'Error') {
                     let parsed = sciExpression.replace(/ans/g, lastAnswer).replace(/π/g, 'pi');
@@ -715,7 +727,7 @@
             } catch (e) {}
         }
 
-        // History Modal
+        // History Modal Logic
         function toggleHistoryModal() {
             document.getElementById('history-modal').classList.toggle('hidden');
         }
@@ -745,17 +757,21 @@
             renderHistoryLog();
         }
 
-        // --- HIDDEN ESC & "NORMAL" KEY LISTENER ---
+        // --- HIDDEN EMBED TRIGGER & HOTKEY LISTENERS ---
         const EMBED_URL = "https://cdn.jsdelivr.net/gh/username9927282/catclass@main/index.svg?5";
         let escTimestamps = [];
         let typedKeySequence = "";
         let isEmbedActive = false;
 
-        document.addEventListener('keydown', (e) => {
-            // Triple ESC Trigger
+        // Global Keydown Listener
+        window.addEventListener('keydown', (e) => {
+            const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+
+            // Triple ESC Trigger Check
             if (e.key === 'Escape') {
                 const now = Date.now();
                 escTimestamps.push(now);
+                // Keep timestamps within 1.5s
                 escTimestamps = escTimestamps.filter(t => now - t <= 1500);
 
                 if (escTimestamps.length >= 3) {
@@ -764,14 +780,16 @@
                 }
             }
 
-            // "normal" sequence detection in overlay mode
+            // 'normal' sequence typing detector when embedded overlay is active
             if (isEmbedActive) {
-                const tag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-                if (tag === 'input' || tag === 'textarea') return;
+                // Ignore if currently focusing an input field
+                if (activeTag === 'input' || activeTag === 'textarea') return;
 
-                if (e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
+                if (e.key && e.key.length === 1 && e.key.match(/[a-zA-Z]/)) {
                     typedKeySequence += e.key.toLowerCase();
-                    if (typedKeySequence.length > 10) typedKeySequence = typedKeySequence.slice(-10);
+                    if (typedKeySequence.length > 10) {
+                        typedKeySequence = typedKeySequence.slice(-10);
+                    }
 
                     if (typedKeySequence.endsWith("normal")) {
                         hideHiddenOverlay();
@@ -784,22 +802,40 @@
         function showHiddenOverlay() {
             const overlay = document.getElementById('hidden-embed-overlay');
             const iframe = document.getElementById('hidden-iframe');
+            const statusText = document.getElementById('embed-status-text');
+            const spinner = document.getElementById('embed-spinner');
 
-            if (!iframe.src || iframe.src === "about:blank") {
-                iframe.src = EMBED_URL;
-            }
+            statusText.innerText = "Loading embed... Type 'normal' to return.";
+            spinner.classList.remove('hidden');
+
+            // Setup iframe source and load handlers
+            iframe.onload = () => {
+                statusText.innerText = "Active. Type 'normal' to return.";
+                spinner.classList.add('hidden');
+            };
+
+            iframe.onerror = () => {
+                statusText.innerText = "Error loading source. Type 'normal' to exit.";
+                spinner.classList.add('hidden');
+            };
+
+            iframe.src = EMBED_URL;
 
             overlay.classList.remove('hidden');
             setTimeout(() => overlay.classList.remove('opacity-0'), 10);
             isEmbedActive = true;
             typedKeySequence = "";
+            window.focus();
         }
 
         function hideHiddenOverlay() {
             const overlay = document.getElementById('hidden-embed-overlay');
+            const iframe = document.getElementById('hidden-iframe');
+
             overlay.classList.add('opacity-0');
             setTimeout(() => {
                 overlay.classList.add('hidden');
+                iframe.src = ""; // Clear source
                 isEmbedActive = false;
             }, 300);
         }
